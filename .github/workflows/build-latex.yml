@@ -4,13 +4,17 @@ jobs:
   build-latex:
     runs-on: ubuntu-latest
     steps:
-      - name: compile latex to pdf
+      - name: Set up Git repository
+        uses: actions/checkout@v2
+        
+      - name: Compile latex to pdf
         uses: thomas-chauvet/latex2pdf-action@1.1.0
         with:
           output_dir: output
           main_latex_file: main.tex
           ctan_packages: amsmath algpseudocode
-      - name: upload pdf to the workflow tab
+          
+      - name: Upload pdf to the workflow tab
         uses: actions/upload-artifact@v2
         with:
           name: output-main
