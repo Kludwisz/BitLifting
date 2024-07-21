@@ -7,6 +7,11 @@ jobs:
       - name: Set up Git repository
         uses: actions/checkout@v2
         
+      - name: Install missing latex packages
+        run: |
+          tinytex::tlmgr_install(pkgs = "algpseudocode")
+        shell: Rscript {0}
+        
       - name: Compile latex to pdf
         uses: thomas-chauvet/latex2pdf-action@1.1.0
         with:
@@ -14,11 +19,6 @@ jobs:
           main_latex_file: main.tex
           ctan_packages: amsmath algpseudocode
 
-      - name: Install missing latex packages
-        run: |
-          tinytex::tlmgr_install(pkgs = "algpseudocode")
-        shell: Rscript {0}
-          
       - name: Upload pdf to the workflow tab
         uses: actions/upload-artifact@v2
         with:
