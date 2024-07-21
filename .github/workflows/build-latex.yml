@@ -1,0 +1,11 @@
+name: latex2pdf
+on: [push]
+jobs:
+  build-latex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: thomas-chauvet/latex2pdf-action@1.1.0
+        with:
+          output_dir: build
+          main_latex_file: main.tex
+          ctan_packages: amsmath algpseudocode
