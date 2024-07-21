@@ -13,6 +13,11 @@ jobs:
           output_dir: output
           main_latex_file: main.tex
           ctan_packages: amsmath algpseudocode
+
+      - name: Install missing latex packages
+        run: |
+          tinytex::tlmgr_install(pkgs = "algpseudocode")
+        shell: Rscript {0}
           
       - name: Upload pdf to the workflow tab
         uses: actions/upload-artifact@v2
