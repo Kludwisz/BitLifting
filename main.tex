@@ -99,10 +99,10 @@ Let’s find a function that advances the internal state of Java Random by 2, by
 \end{algorithmic}
 \ \
 
-We could combine two \Call{advaceBy2}{} calls into \Call{advaceBy4}{}, two \Call{advaceBy4}{} into \Call{advaceBy8}{}, and so on. This way, it’s possible to advance the state by any power of two. That, in turn, gives us the ability to advance the state $n$ times by combining appropriate power-of-two advancement functions for each bit that’s set to true in the binary representation of $n$.
-As an example, to find a function that advances the state by 14, which is 1110 in binary, we can combine \Call{advaceBy8}{}, \Call{advaceBy4}{}, and \Call{advaceBy2}{}. 
+We could combine two \Call{advanceBy2}{} calls into \Call{advanceBy4}{}, two \Call{advanceBy4}{} into \Call{advanceBy8}{}, and so on. This way, it’s possible to advance the state by any power of two. That, in turn, gives us the ability to advance the state $n$ times by combining appropriate power-of-two advancement functions for each bit that’s set to true in the binary representation of $n$.
+As an example, to find a function that advances the state by 14, which is 1110 in binary, we can combine \Call{advanceBy8}{}, \Call{advanceBy4}{}, and \Call{advanceBy2}{}. 
 We can also find a function that calculates the previous state of Java Random. Because an advancement by $2^{48}$ would make the generator return to the same state, an advancement by $2^{48}-1$ would be equivalent to “going back” by 1 state in the generator. \\
-By precalculating the parameters of a particular \Call{advaceByN}{} function, we can achieve performance similar to a single \Call{nextSeed}{} call, which is paramount to efficient seed searching.
+By precalculating the parameters of a particular \Call{advanceByN}{} function, we can achieve performance similar to a single \Call{nextSeed}{} call, which is paramount to efficient seed searching.
 
 \section{State prediction}
 
