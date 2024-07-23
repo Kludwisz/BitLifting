@@ -63,7 +63,7 @@ The third key function of Java Random is \Call{next}{$numBits$}, defined as foll
 \noindent which first advances the internal state of the generator, then returns the top $numBits$ bits of the new state as an integer. It serves as a helper for more complex operations.
 
 \indent Java Random contains a small set of specialized functions that the user can call to get a specific type of random number. In Minecraft, the most frequently used ones are: \Call{nextInt}{$bound$}, \Call{nextFloat}{}, and \Call{nextLong}{}. 
-The source code, along with detailed comments for all of the functions can be found in Appendix \ref{appendix.jrand}. 
+The source code, along with detailed comments for all of the functions can be found in Appendix A. %REF!
 In order to understand state prediction and bit lifting, being familiar with their implementations is strongly recommended (todo: link to java.util.Random documentation).
 
 \section{Multiple-state and backwards advancement}
@@ -253,7 +253,7 @@ We have
     & s = (state_0 \oplus M) - R
 \end{align*}
 
-and since the values of $state_0, M, R$ are all known, we can retrieve $s$ using the last equation, at which point checking the remaining conditions is simple. We have obtained an algorithm for finding Minecraft seeds that have a cluster of 4 nether structures spawning in minimal proximity from each other at 0,0. Further explanation of this example is available in Appendix \ref{appendix.regionstructures}. 
+and since the values of $state_0, M, R$ are all known, we can retrieve $s$ using the last equation, at which point checking the remaining conditions is simple. We have obtained an algorithm for finding Minecraft seeds that have a cluster of 4 nether structures spawning in minimal proximity from each other at 0,0. Further explanation of this example is available in Appendix B. %REF! 
 %TODO A simple Java implementation of this example and a link to a CUDA kernel are available in Appendix C.2.
 
 %TODO B: \Call{nextFloat}{} state prediction
@@ -357,13 +357,13 @@ Let $s$ be the top 31 bits of the state after the \Call{nextSeed}{} call. Let us
 
 \noindent As $p \ | \ n$,
 
-\begin{equation}\label{lifting.core}
+\begin{equation}\label{lifting.core}\tag{$\star$}
      s \equiv r \quad (\text{mod} \ p)
 \end{equation}
 
 Therefore, the $log_2(p)$ lower bits of s are numerically equal to $r$ mod $p$. We have lifted the middle bits of the internal state of Java Random using the return value of \Call{nextInt}{$bound$}. Although this result might look extremely similar to what we achieved through state prediction for \Call{nextInt}{$2^n$}, it’s actually considerably more powerful.
 
-The information we have obtained is bits 18 to $17 + log_2(p)$ of a Java Random internal state (counting from least to most significant bit, where the least significant bit is at index 1). We already know that those are independent from the more significant bits, so we can consider a shortened-state LCG with a modulus of $2^{17+log_2(p)}$. That gives us the ability to first rule out the lower bit values that don’t satisfy (\ref{lifting.core}), and then iterate the remaining upper bits to check the full conditions. This effectively reduces the search space by a factor of $p$, as checking the lower bit possibilities is much faster than the upper bit iteration phase (REF NEEDED not always true). Still, that is a worse outcome than we would expect from the simpler state prediction technique, so what is the point? Unlike state prediction, bit lifting can be applied with multiple conditions. Because the criteria of usage are also less restrictive (we don’t have a set formula for all seeds that satisfy the conditions), lifting is much more flexible and, as we will see, it can be applied in a number of obscure scenarios.
+The information we have obtained is bits 18 to $17 + log_2(p)$ of a Java Random internal state (counting from least to most significant bit, where the least significant bit is at index 1). We already know that those are independent from the more significant bits, so we can consider a shortened-state LCG with a modulus of $2^{17+log_2(p)}$. That gives us the ability to first rule out the lower bit values that don’t satisfy ($\star$), and then iterate the remaining upper bits to check the full conditions. This effectively reduces the search space by a factor of $p$, as checking the lower bit possibilities is much faster than the upper bit iteration phase (REF NEEDED not always true). Still, that is a worse outcome than we would expect from the simpler state prediction technique, so what is the point? Unlike state prediction, bit lifting can be applied with multiple conditions. Because the criteria of usage are also less restrictive (we don’t have a set formula for all seeds that satisfy the conditions), lifting is much more flexible and, as we will see, it can be applied in a number of obscure scenarios.
 
 Firstly, let’s look at a simplified example of bit lifting. We’re looking for integers $i$ that satisfy
 
