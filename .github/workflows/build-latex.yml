@@ -35,6 +35,7 @@ jobs:
           release_name: ${{ github.ref }}
           draft: false
           prerelease: false
+          allowUpdates: true
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
