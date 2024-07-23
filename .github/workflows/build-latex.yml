@@ -17,7 +17,7 @@ jobs:
         with:
           output_dir: output
           main_latex_file: main.tex
-          ctan_packages: amsmath algorithmicx
+          ctan_packages: amsmath algorithmicx listings
 
       - name: Upload pdf to the workflow tab
         uses: actions/upload-artifact@v2
