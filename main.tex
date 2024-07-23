@@ -1,5 +1,6 @@
 \documentclass{article}
 \usepackage{algpseudocode}
+\usepackage{listings}
 \usepackage{amsmath}
 
 \title{Java Random seed searching by state prediction and bit lifting}
@@ -28,10 +29,9 @@ To generate pseudo-random numbers, Java Random internally stores a 48-bit intege
 \ \
 
 \noindent where $M, A$ are constant integers. Although it's not necessary to know their values, for the sake of completeness:
-\begin{algorithmic}
-    \State $M = 25214903917$
-    \State $A = 11$
-\end{algorithmic}
+\begin{align*}
+    M = 25214903917, \quad A = 11
+\end{align*}
 \ \
 
 This type of pseudo-random number generation algorithm is called a Linear Congruential Generator (LCG). The values of $M$ and $A$ are chosen in such a way that the \Call{nextSeed}{} function always cycles through all $2^{48}$ possible states before returning to the same state. (todo: citation needed)
@@ -48,7 +48,7 @@ The \Call{nextSeed}{} function on its own is not enough to create a self-suffici
 
 \noindent where $M$ is the same constant integer as in \Call{nextSeed}{}, and $\oplus$ is the XOR operator. \\
 
-\noindent It’s worth noting that this effectively gives the user the ability to set the internal state to an arbitrary number of their choice, $n$, by simply calling \Call{setSeed}{$n \oplus M$}. The point of this function is to allow the user to be able to deterministically reproduce a sequence of pseudorandom numbers. This is extremely useful in situations like Minecraft’s world generation, where the player expects to get the exact same world by inputting the exact same world seed, while the world itself still appears “random”.\\
+\noindent It’s worth noting that this effectively gives the user the ability to set the internal state to an arbitrary number of their choice, $n$, by simply calling \Call{setSeed}{$n \oplus M$}. The point of this function is to allow the user to be able to deterministically reproduce a sequence of pseudo-random numbers. This is extremely useful in situations like Minecraft’s world generation, where the player expects to get the exact same world by inputting the exact same world seed, while the world itself still appears “random”.\\
 The third key function of Java Random is \Call{next}{$numBits$}, defined as follows:
 
 \
@@ -63,7 +63,7 @@ The third key function of Java Random is \Call{next}{$numBits$}, defined as foll
 \noindent which first advances the internal state of the generator, then returns the top $numBits$ bits of the new state as an integer. It serves as a helper for more complex operations.
 
 \indent Java Random contains a small set of specialized functions that the user can call to get a specific type of random number. In Minecraft, the most frequently used ones are: \Call{nextInt}{$bound$}, \Call{nextFloat}{}, and \Call{nextLong}{}. 
-%TODO The source code, along with detailed comments for all of the functions can be found in Appendix A. 
+The source code, along with detailed comments for all of the functions can be found in Appendix \ref{appendix.jrand}. 
 In order to understand state prediction and bit lifting, being familiar with their implementations is strongly recommended (todo: link to java.util.Random documentation).
 
 \section{Multiple-state and backwards advancement}
@@ -173,16 +173,16 @@ If the \Call{nextInt}{} bound is not a power of two, we can still use state pred
 \Function{nextInt}{$bound$}
     \State $bits \gets 0$
     \State $value \gets 0$
-    \While{$bits - value + bound > 0$}
+    \Repeat
         \State $bits = \Call{next}{31}$
         \State $value = bits$ mod $bound$
-    \EndWhile
+    \Until{$bits - value + bound - 1 >= 0$}
     \State \Return $value$
 \EndFunction
 \end{algorithmic}
 \ \
 
-Although the condition $bits - value + bound > 0$ seems to be always true, the left-hand-side is treated as a 32-bit U2 signed integer, which means values greater than $2^{31} - 1$ will overflow and become negative. For small values of bound, we can ignore the while loop, as it is very unlikely to run more than once (todo: further explanation). This approach is satisfactory for most practical applications. 
+Although the condition $bits - value + bound - 1 >= 0$ seems to be always true, the left-hand-side is treated as a 32-bit U2 signed integer, which means values greater than $2^{31} - 1$ will overflow and become negative. For small values of bound, we can ignore the loop, as it is very unlikely to run more than once (todo: further explanation). This approach is satisfactory for most practical applications. 
 % TODO For how to handle cases where the loop would run more than once, see Appendix B. 
 
 \
@@ -309,7 +309,7 @@ Notice that the last digits of consecutive state triplets are equal. The moduli,
 
 Most importantly, a similar property is satisfied for binary states. Because the LCG inside Java Random uses a modulus of $2^{48}$, at the end of a state update, any binary digits (bits) above the 48-th get cut off without affecting the entire state. Therefore, the upper bits of a Java Random state do not affect the lower bits of any future state. This is the core idea that makes bit lifting possible.
 
-Since the lower bits in a Java Random state aren’t affected by the more significant bits, we can consider shortened-state LCGs that have the same multiplier and addend as Java Random but a smaller modulus, $2^m$. Such LCGs will follow the exact same cycle of states as the lower $m$ bits of the full-state Java Random. For $m = 1$, we would get the LCG
+Since the lower bits in a Java Random state are not affected by the more significant bits, we can consider shortened-state LCGs that have the same multiplier and addend as Java Random but a smaller modulus, $2^m$. Such LCGs will follow the exact same cycle of states as the lower $m$ bits of the full-state Java Random. For $m = 1$, we would get the LCG
 \begin{algorithmic}
     \State $state \gets (state \times M + A)$ mod 2
 \end{algorithmic}
@@ -356,13 +356,13 @@ Let $s$ be the top 31 bits of the state after the \Call{nextSeed}{} call. Let us
 
 \noindent As $p \ | \ n$,
 
-\begin{equation}
+\begin{equation}\label{lifting.core}
      s \equiv r \quad (\text{mod} \ p)
 \end{equation}
 
 Therefore, the $log_2(p)$ lower bits of s are numerically equal to $r$ mod $p$. We have lifted the middle bits of the internal state of Java Random using the return value of \Call{nextInt}{$bound$}. Although this result might look extremely similar to what we achieved through state prediction for \Call{nextInt}{$2^n$}, it’s actually considerably more powerful.
 
-The information we have obtained is bits 18 to $17 + log_2(p)$ of a Java Random internal state (counting from LSB to MSB, LSB = bit number 1). We already know that those are independent from the more significant bits, so we can consider a shortened-state LCG with a modulus of $2^{17+log_2(p)}$. That gives us the ability to first rule out the lower bit values that don’t satisfy (6), and then iterate the remaining upper bits to check the full conditions. This effectively reduces the search space by a factor of $p$, as checking the lower bit possibilities is much faster than the upper bit iteration phase (REF NEEDED not always true). Still, that is a worse outcome than we would expect from the simpler state prediction technique, so what is the point? Unlike state prediction, bit lifting can be applied with multiple conditions. Because the criteria of usage are also less restrictive (we don’t have a set formula for all seeds that satisfy the conditions), lifting is much more flexible and, as we will see, it can be applied in a number of obscure scenarios.
+The information we have obtained is bits 18 to $17 + log_2(p)$ of a Java Random internal state (counting from least to most significant bit, where the least significant bit is at index 1). We already know that those are independent from the more significant bits, so we can consider a shortened-state LCG with a modulus of $2^{17+log_2(p)}$. That gives us the ability to first rule out the lower bit values that don’t satisfy (\ref{lifting.core}), and then iterate the remaining upper bits to check the full conditions. This effectively reduces the search space by a factor of $p$, as checking the lower bit possibilities is much faster than the upper bit iteration phase (REF NEEDED not always true). Still, that is a worse outcome than we would expect from the simpler state prediction technique, so what is the point? Unlike state prediction, bit lifting can be applied with multiple conditions. Because the criteria of usage are also less restrictive (we don’t have a set formula for all seeds that satisfy the conditions), lifting is much more flexible and, as we will see, it can be applied in a number of obscure scenarios.
 
 Firstly, let’s look at a simplified example of bit lifting. We’re looking for integers $i$ that satisfy
 
@@ -383,4 +383,129 @@ Although it might be tempting to state-predict the \Call{nextInt}{20} and filter
 %TODO Part 3: Practical applications of bit lifting
 %(structure lifting, ref to seedcrackerx)
 
+\appendix
+
+\section{An implementation of Java Random and frequently used functions}\label{appendix.jrand}
+
+\begin{lstlisting}[language=Java]
+public class JavaRandom {
+    // The LCG's parameters:
+    private static final long MULTIPLIER = 25214903917;
+    private static final long ADDEND = 11;
+    private static final long MODULUS = 1L << 48;
+
+    // state is a 48-bit integer, but internally
+    // it's stored as a 64-bit long.
+    private long state;
+
+    public JavaRandom(long seed) {
+        // Note the use of setSeed in the constructor.
+        setSeed(seed);
+    }
+
+    public void setSeed(long seed) {
+        state = (seed ^ MULTIPLIER) % MODULUS;
+    }
+
+    private void nextSeed() {
+        // Some nextSeed implementations use a bitmask
+        // here intstead of the modulo operator.
+        state = (state * MULTIPLIER + ADDEND) % MODULUS;
+    }
+
+    // Notice that next(numBits) returns a 32-bit int, 
+    // so it indirectly assumes numBits <= 32
+    private int next(int numBits) {
+        nextSeed();
+        // >>> here is equivalent to the more natural,
+        // arithmetic bit shift, >>, since state >= 0
+        return (int)(state >>> 48-numBits);
+    }
+
+    // Returns a pseudo-random integer from the range
+    // [0, bound-1]
+    public int nextInt(int bound) {
+        if(bound <= 0) {
+            throw new IllegalArgumentException(
+                "bound must be positive");
+	}
+
+        // Equivalent to "bound is a power of two"
+        if((bound & -bound) == bound) {
+            // Advance the state, then return the top 
+            // log2(bound) bits. Casting next(31) to 
+            // a long ensures that no overflow happens 
+            // before we return the result.
+            return (int)((bound * (long)next(31)) >> 31);
+	}
+ 
+        int bits = 0, value = 0;
+        do {
+            // Advance the state and take the top 31 bits
+            bits = this.next(31);
+            value = bits % bound;
+        } while(bits - value + (bound - 1) < 0);
+        // The condition is only true if an integer 
+        // overflow happened
+        
+        return value;
+    }
+
+    public float nextFloat() {
+        // Advance the state and take the top 24 bits, 
+        // then map that value to a uniformly distributed 
+        // fraction in the range [0, 1]
+        return next(24) / ((float)(1 << 24));
+    }
+
+    public long nextLong() {
+        // Take two upper 32-bit values from consecutive 
+        // states and sum them together, moving the first 
+        // value up by 32 bits. If the second next(32) 
+        // returns a negative value, it will affect 
+        // the upper 32 bits!
+        return ((long)(next(32)) << 32) + next(32);
+    }
+}
+\end{lstlisting}
+
+\section{Minecraft region structure generation}\label{appendix.regionstructures}
+
+In this appendix, we will explore one specific aspect of Minecraft's world generation | region structures.
+As the name "region structures" suggests, they are a special type of structure which generates inside what's called a region. Inside one region, there can only be one region structure of a given type.\\
+Each region structure can be described as a set of 3 parameters: spacing, separation, and salt. Spacing is an integer that determines how large the regions for the structure are. For example, the spacing for Desert Temples is 32 chunks, or 512 blocks, which means that Desert Temple regions are areas of 512 by 512 blocks on the X and Z axes. \\
+All regions are placed in a grid-like pattern, right next to each other, with no spaces in between. They span the entire Minecraft world. Each region's position is linked with a pair of region coordinates $(x_r, z_r)$ that describes its world coordinates. For a given block position and region spacing, we can calculate the region position of the region inside which the block is located as
+\begin{equation}
+    (x_r, z_r) = (\frac{x_{block}}{16 * spacing}, \frac{z_{block}}{16 * spacing})
+\end{equation}
+
+\noindent Similarly, for a given chunk position,
+\begin{equation}
+    (x_r, z_r) = (\frac{x_{chunk}}{spacing}, \frac{z_{chunk}}{spacing})
+\end{equation}
+
+The second parameter, separation, is the minimum distance between two region structures' starting chunk positions. It effectively creates a padding area, where the region structure can't start generating, around each region's upper borders (the borders with the maximum x or z coordinate):
+%todo Add two different regions illustration
+
+The third parameter, salt, influences how an instance of Java Random responsible for the generation of a region structure's position is seeded. 
+Let's examine how all three of these parameters combined are used to determine the chunk position of a region structure for region coordinates $(x_r, z_r)$ and a known world seed $w$:
+
+\
+\begin{algorithmic}
+\State \Call{setSeed}{$w + P \times x_r + Q \times z_r + salt$}
+\State $x_{chunk} \gets x_r \times spacing + \Call{nextInt}{spacing - separation}$
+\State $z_{chunk} \gets z_r \times spacing + \Call{nextInt}{spacing - separation}$
+\end{algorithmic}
+\ \
+
+\noindent For clarity, the values of $P, Q$ are known integer constants:
+\begin{align*}
+    P = 341873128712, \quad Q = 132897987541
+\end{align*}
+
+As we can see, the algorithm first seeds a Java Random PRNG using the region position and the salt parameter. This ensures that different regions use different sequences of pseudo-random numbers to generate a given region structure. The Minecraft world seed is a 64-bit number, but since Java Random operates under mod $2^{48}$, only the lower 48 bits of the seed are used by the algorithm. This is why the lower 48 bits of the world seed are often called the \emph{structure seed}. As $salt$ is different for different region structures, even if two region structures had the same $spacing$ and $separation$, their positions inside a specific region would not be the same in most cases.
+$x_r \times spacing$ and $z_r \times spacing$ denote the minimum chunk position inside the region $x_r, z_r$, while $\Call{nextInt}{spacing - separation}$ offsets the generated chunk position by a pseudo-random value between 0 and $spacing - separation - 1$ inclusive.
+
+The values of $spacing, separation, salt$ for a specific region structure and a specific version of Minecraft can be found inside the version's jar file, under 
+\begin{verbatim} data/minecraft/worldgen/structure_set \end{verbatim}
 \end{document}
