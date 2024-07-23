@@ -253,7 +253,8 @@ We have
     & s = (state_0 \oplus M) - R
 \end{align*}
 
-and since the values of $state_0, M, R$ are all known, we can retrieve $s$ using the last equation, at which point checking the remaining conditions is simple. We have obtained an algorithm for finding Minecraft seeds that have a cluster of 4 nether structures spawning in minimal proximity from each other at 0,0. %TODO A simple Java implementation of this example and a link to a CUDA kernel are available in Appendix C.2.
+and since the values of $state_0, M, R$ are all known, we can retrieve $s$ using the last equation, at which point checking the remaining conditions is simple. We have obtained an algorithm for finding Minecraft seeds that have a cluster of 4 nether structures spawning in minimal proximity from each other at 0,0. Further explanation of this example is available in Appendix \ref{appendix.regionstructures}. 
+%TODO A simple Java implementation of this example and a link to a CUDA kernel are available in Appendix C.2.
 
 %TODO B: \Call{nextFloat}{} state prediction
 %...
@@ -471,7 +472,7 @@ public class JavaRandom {
 
 \section{Minecraft region structure generation}\label{appendix.regionstructures}
 
-In this appendix, we will explore one specific aspect of Minecraft's world generation | region structures.
+In this section, we will explore one specific aspect of Minecraft's world generation | region structures.
 As the name "region structures" suggests, they are a special type of structure which generates inside what's called a region. Inside one region, there can only be one region structure of a given type.\\
 Each region structure can be described as a set of 3 parameters: spacing, separation, and salt. Spacing is an integer that determines how large the regions for the structure are. For example, the spacing for Desert Temples is 32 chunks, or 512 blocks, which means that Desert Temple regions are areas of 512 by 512 blocks on the X and Z axes. \\
 All regions are placed in a grid-like pattern, right next to each other, with no spaces in between. They span the entire Minecraft world. Each region's position is linked with a pair of region coordinates $(x_r, z_r)$ that describes its world coordinates. For a given block position and region spacing, we can calculate the region position of the region inside which the block is located as
