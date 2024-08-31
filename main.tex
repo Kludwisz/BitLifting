@@ -409,11 +409,11 @@ Let $s$ be the top 31 bits of the state after the \Call{nextSeed}{} call. Let us
      s \equiv r \quad (\text{mod} \ p)
 \end{equation}
 
-Therefore, the $log_2(p)$ lower bits of s are numerically equal to $r$ mod $p$. We have lifted the middle bits of the internal state of Java Random using the return value of \Call{nextInt}{$bound$}. It is clear now why we needed $n$ to be an even number | otherwise we would not have any partial information about the middle bits.
+Therefore, the $log_2(p)$ lower bits of s are numerically equal to $r$ mod $p$. We have lifted the middle bits of the internal state of Java Random using the return value of \Call{nextInt}{$bound$}. It is clear now why we needed $n$ to be an even number -- otherwise we would not have any partial information about the middle bits.
 Although this result might look extremely similar to what we achieved through state prediction for \Call{nextInt}{$2^n$}, in reality it is considerably more powerful.
 
 The information we have obtained is bits 18 to $17 + log_2(p)$ of a Java Random internal state (counting from least to most significant bit, where the least significant bit is at index 1). We already know that those are independent from the more significant bits, so we can consider a shortened-state LCG with a modulus of $2^{17+log_2(p)}$. That gives us the ability to first rule out the lower bit values that don’t satisfy ($\star \star$), and then iterate the remaining upper bits to check the full conditions. This effectively reduces the search space by a factor of $p$, as checking the lower bit possibilities is usually much faster than the upper bit iteration phase. \\
-By now we can address the first precondition of bit lifting | if $n$ was a power of two, we would only have information about the upper bits, so considering a shortened-state LCG would not be as beneficial. \\
+By now we can address the first precondition of bit lifting -- if $n$ was a power of two, we would only have information about the upper bits, so considering a shortened-state LCG would not be as beneficial. \\
 Still, a reduction by a factor of $p$ is a worse outcome than we would expect from the simpler state prediction technique, so what is the point? Unlike state prediction, bit lifting can be applied with multiple conditions. Because the criteria of usage are also less restrictive (we don’t have a set formula for all seeds that satisfy the conditions), lifting is much more flexible and, as we will see, it can be applied in a number of obscure scenarios. 
 
 Firstly, let’s look at a simplified example of bit lifting. We’re looking for integers $i$ that satisfy
@@ -432,12 +432,28 @@ Firstly, let’s look at a simplified example of bit lifting. We’re looking fo
 
 Although it might be tempting to state-predict the \Call{nextInt}{20} and filter the remaining calls going backwards, let’s see how much information we can lift here. $10 = 2 \times 5$, which gives $log_2(2) = 1$ bits of information. $12 = 4 \times 3$, $log_2(4) = 2$ bits of information. Similarly, the \Call{nextInt}{14} call gives 1 bit, \Call{nextInt}{16} gives 0 since it does not satisfy the lifting preconditions, \Call{nextInt}{18} gives 1 bit and \Call{nextInt}{20} gives 2. In total, that’s 7 bits of information about the lower 20 bits of the potential state, which is a reduction by a factor of 128, more than 6 times the search space reduction achieved via state prediction. %TODO A Java implementation of this example can be found in Appendix C.3.
 
-% \subsection{Practical applications of bit lifting}
-% (structures, seedcrackerx)
-% Having acquired some theoretical background, it's time to discuss ...
+\subsection{Practical applications of bit lifting}
+Having established some theoretical background, it's time to delve into a common practical application of bit lifting in the context of Minecraft world generation -- region structure lifting. It is recommended that the reader be familiar with the basics of region structure generation described in Appendix B.%REF!
 
-% \subsection{Iterative bit lifting}
-% An interesting technique that can be used to gain ...
+Consider the following problem: \\
+Given a set, $P$, of known region structure positions inside a Minecraft world, find the set of all Minecraft world seeds, $S$ that correctly generate the structure positions. \\
+As only the \emph{structure seed}, or, in other words, the lower 48 bits of the world seed, can affect the positions of region structures in the game, one could say that the problem could be solved with brute force, iterating over the full 48-bit range and testing each structure seed. However, that approach is far from perfect, as a large amount of computing power is required to complete the search. 
+
+Fortunately, bit lifting can be applied to greatly reduce the amount of computational resources needed. Each region structure uses only the \Call{nextInt}{spacing - separation} call to generate its positions in all regions. If we calculate the region coordinates for each member of $P$, we will be able to subtract the factors $x_r \times spacing$ and $z_r \times spacing$ to only be left with the pseudo-random integer generated via \Call{nextInt}{spacing - separation}. We will call a region structure \emph{liftable} if the bound, $spacing - separation$ satisfies the bit lifting preconditions -- it is not odd, and not a power of 2. In Minecraft 1.16.1, liftable region structures include shipwrecks, villages, desert temples, jungle temples, and more. 
+
+Consider a subset $L$ of the set $P$ that only contains the positions of liftable region structures. Take a member of $L$ that has the greatest power of two in the prime factorization of the associated \Call{nextInt}{} bound. We will call that power $p_{max}$ (across all region structures in Minecraft 1.16.1, $p_{max} = 3$, for villages, desert temples, and jungle temples). Now, if we iterate over all possible values of the lower $17 + p_{max}$ bits, we will be able to discard all partial seeds that can't generate the correct \Call{nextInt}{spacing - separation} results for the region structure modulo $2^{p_{max}}$. 
+
+Finally, we will still need a way to use the data from other liftable structures. Notice that we are already considering partial seeds of maximum length given the input data; for other structures, we would ideally want to apply bit lifting with shorter partial seeds. Seeing as the upper bits of any Java Random state do not influence the lower bits of any other state, and we are only ever taking a sequence of the top bits modulo a power of two to compare them with the input data, the extraneous bits will simply be discarded by the modulo operation, not affecting the result. This convenient property essentially allows us to use the remaining data all the same, no matter what powers of two are used in the process.
+
+Variations of this algorithm have already been implemented in several Minecraft seed cracking tools, including the well-known general-purpose tool SeedCrackerX by 19MisterX98, and the more bit-lifting-oriented Seedcracker script by Epic10l2. %TODO add links to both
+% TODO For completeness, a direct Java implementation of the described algorithm is available in Appendix C
+
+\subsection{Incremental bit lifting}
+An interesting technique that can be used to further improve the performance of bit lifting is incremental lifting. Although it might seem that an attempt at reducing the runtime of an efficient, lifting-based algorithm is unnecessary, incremental lifting might have some exotic use cases in practice, and is most definitely worth exploring academically.
+
+The core idea behind incremental bit lifting is to start by filtering the smallest possible range of lower bit values using only partial data, and incrementally expand the range, applying all the pertinent filters. Intuitively, this should be an improvement over the standard bit lifting algorithm, as at each step, the seed range is kept as small as possible for the available data.
+% test lifting vs iter lifting to see if it's any better (it is)
+% TODO create lifting vs incr lifting graph
 
 % \subsection{An unusual hybrid: bit lifting meets state prediction}
 % In this final section on bit-lifting, we will ...
@@ -534,7 +550,7 @@ public class JavaRandom {
 
 \section{Minecraft region structure generation}\label{appendix.regionstructures}
 
-In this section, we will explore one specific aspect of Minecraft's world generation | region structures.
+In this section, we will explore one specific aspect of Minecraft's world generation -- region structures.
 As the name "region structures" suggests, they are a special type of structure which generates in what's called a region. Inside one region, there can only be one region structure of a given type.\\
 Each region structure can be described as a set of 3 integer parameters: $spacing$, $separation$, and $salt$. The first parameter, $spacing$ determines how many chunks the regions for a given structure span. For example, the spacing for Desert Temples is 32 chunks, or 512 blocks, which means that Desert Temple regions are areas of 512 by 512 blocks on the $X$ and $Z$ axes. \\
 
