@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Compile latex to pdf
-        uses: thomas-chauvet/latex2pdf-action@1.1.0
+        uses: thomas-chauvet/latex2pdf-action@v2
         with:
           output_dir: output
           main_latex_file: main.tex
