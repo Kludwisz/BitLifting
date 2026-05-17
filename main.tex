@@ -3,23 +3,24 @@
 \usepackage{listings}
 \usepackage{amsmath}
 \usepackage{graphicx}
+\usepackage{hyperref}
 
 \title{Java Random seed searching by state prediction and bit lifting}
 \author{by Kris}
-\date{July 2024}
+\date{May 2026}
 
 \begin{document}
 \maketitle
 
 \section{Introduction}
 Work in progress.\\
-Seed searching is the process of finding initial seeds of a pseudo-random number generator (PRNG) that satisfy a specific set of conditions.
-This document is intended to be a practical reference guide to two advanced seed searching techniques: bit lifting and state prediction, in the context of Minecraft seed finding and/or seed cracking.
+Seed searching is the process of finding initial seeds of a pseudo-random number generator (PRNG) that satisfy a specific set of conditions on the generator's outputs. %TODO ref and summary - prng article
+This document is intended to be a practical reference guide to two advanced seed searching techniques: bit lifting and state prediction, primarily in the context of Minecraft seed finding and/or seed cracking.
 
 \section{An overview of Java Random}
 In this section, we will briefly discuss the Java Random PRNG and its key functions.
 
-To generate pseudo-random numbers, Java Random internally stores a 48-bit integer, called the (internal) state, or (internal) seed of the generator. The internal state is not directly accessible by the generator’s user. Every time the user requests a pseudo-random number from the PRNG, that state is updated, potentially multiple times, and some function of the new state(s) is returned to as the output. The state update (advancement) function, \Call{nextSeed}{}, is defined as follows:
+To generate pseudo-random numbers, Java Random internally stores a 48-bit integer, called the (internal) state, or (internal) seed of the generator. The internal state is not directly accessible by the generator’s user. Every time the user requests a pseudo-random number from the PRNG, that state is updated, potentially multiple times, and some function of the new state(s) is returned as the output. The state update (state advancement) function, \Call{nextSeed}{}, is defined as follows:
 
 \
 \begin{algorithmic}
@@ -29,13 +30,13 @@ To generate pseudo-random numbers, Java Random internally stores a 48-bit intege
 \end{algorithmic}
 \ \
 
-\noindent Where $a$ mod $b$ denotes an operator that returns the positive remainder from dividing $a$ by $b$, and $M, A$ are constant integers. For the sake of completeness:
+\noindent Where $a$ mod $b$ denotes an operator that returns the positive remainder from dividing $a$ by $b$, and $M, A$ are constant integers. For completeness, the values of $M, A$ are as follows:
 \begin{equation}\notag
     M = 25214903917, \quad A = 11
 \end{equation}
 \ \
 
-This type of pseudo-random number generation algorithm is called a Linear Congruential Generator (LCG). The values of $M$ and $A$ are chosen in such a way that the \Call{nextSeed}{} function always cycles through all $2^{48}$ possible states before returning to the same state. (todo: citation needed)
+This type of pseudo-random number generation algorithm is called a Linear Congruential Generator (LCG). The values of $M$ and $A$ are chosen in such a way that the \Call{nextSeed}{} function always cycles through all $2^{48}$ possible states before returning to the same state (see section java.util.Random in \href{https://docs.google.com/document/d/1V1wpuHcewQM3loxzVW0LQqASc17LkxeN6qugebkHkJ8}{On Seedfinding by NelS}).
 
 The \Call{nextSeed}{} function on its own is not enough to create a self-sufficient PRNG. The second key function of Java Random is \Call{setSeed}{$seed$}, which is used to set the internal state of the generator using a user-provided seed as follows:
 
@@ -47,9 +48,9 @@ The \Call{nextSeed}{} function on its own is not enough to create a self-suffici
 \end{algorithmic}
 \ \
 
-\noindent where $M$ is the same constant integer as in \Call{nextSeed}{}, and $\oplus$ is the XOR operator.
+\noindent where $M$ is the same constant integer as the one in \Call{nextSeed}{}, and $\oplus$ is the XOR operator.
 
-It’s worth noting that this effectively gives the user the ability to set the internal state to an arbitrary number of their choice, $n$, by simply calling \Call{setSeed}{$n \oplus M$}. The point of this function is to allow the user to be able to deterministically reproduce a sequence of pseudo-random numbers. This is extremely useful in situations like Minecraft’s world generation, where the player expects to get the exact same world by inputting the exact same world seed, while the world itself still appears “random”.\\
+It’s worth noting that this effectively gives the user the ability to set the internal state to an arbitrary number of their choice, $n$, by simply calling \Call{setSeed}{$n \oplus M$}. The point of this function is to allow the user to be able to deterministically reproduce a sequence of pseudo-random numbers. This is crucial in contexts like Minecraft’s procedural world generation. The player expects to get the exact same world by inputting the exact same world seed and they expect distinct world seeds to produce different, seemingly random results. The generator must therefore be able to re-create random-looking worlds with high accuracy. \\
 The third key function of Java Random is \Call{next}{$numBits$}, defined as follows:
 
 \
@@ -65,7 +66,7 @@ The third key function of Java Random is \Call{next}{$numBits$}, defined as foll
 
 \indent Java Random contains a small set of specialized functions that the user can call to get a specific type of random number. In Minecraft, the most frequently used ones are: \Call{nextInt}{$bound$}, \Call{nextFloat}{}, and \Call{nextLong}{}. 
 The source code, along with detailed comments for all of the functions can be found in Appendix A. %REF!
-In order to understand state prediction and bit lifting, being familiar with their implementations is strongly recommended (todo: link to java.util.Random documentation).
+In order to understand state prediction and bit lifting, being familiar with their implementations is strongly recommended (see \href{https://docs.oracle.com/javase/8/docs/api/java/util/Random.html}{the documentation of java.util.Random}).
 
 \section{Multiple-state and backwards advancement}
 
@@ -183,8 +184,7 @@ If the \Call{nextInt}{} bound is not a power of two, we can still apply state pr
 \end{algorithmic}
 \ \
 
-Although the condition $bits - value + bound - 1 >= 0$ seems to be always true, the left-hand-side is treated as a 32-bit U2 signed integer (todo: citation needed), which means values greater than $2^{31} - 1$ will overflow and become negative. For small values of bound, we can ignore the loop, as it is very unlikely to run more than once (todo: further explanation). This approach is satisfactory for most practical applications. 
-% TODO For how to handle cases where the loop would run more than once, see Appendix B. 
+Although the condition $bits - value + bound - 1 >= 0$ seems to be always true, the left-hand-side is treated as a 32-bit two's complement signed integer (see \href{https://en.wikipedia.org/wiki/Two%27s_complement}{the two's complement article on Wikipedia}), which means values greater than $2^{31} - 1$ will overflow and become negative. For small values of $bound$, we can ignore the loop, as it is very unlikely to run more than once (todo: further explanation). This approach is satisfactory for most practical applications. 
 
 \
 \begin{algorithmic}
@@ -246,7 +246,7 @@ Let’s take a look at a very practical example of state prediction for \Call{ne
 \end{algorithmic}
 \ \
 
-We will ignore for now what these conditions represent, and focus on how to find values of s that satisfy them efficiently. All \Call{nextInt}{} bounds here are 23, so we can state-predict any of the calls and check the remaining ones. Let’s choose the first \Call{nextInt}{23} after \Call{setSeed}{$s + R$} to be our state-predicted call. From there, we can filter the next condition, $\Call{nextInt}{23} \to 0$, and go back 2 states to retrieve the state right after \Call{setSeed}{$s + R$}, which we'll call $state_0$ (notice that we're ignoring the unlikely possibility that any of the two \Call{nextInt}{23} calls might have caused more than one state advancement).\\
+We will ignore for now what these conditions represent, and focus on how to find values of $s$ that satisfy them efficiently. All \Call{nextInt}{} bounds here are 23, so we can state-predict any of the calls and check the remaining conditions going forward. Let’s choose the first \Call{nextInt}{23} after \Call{setSeed}{$s + R$} to be our state-predicted call. From there, we can filter the next condition, $\Call{nextInt}{23} \to 0$, and go back 2 states to retrieve the state right after \Call{setSeed}{$s + R$}, which we'll call $state_0$ (notice that we're ignoring the unlikely possibility that any of the two \Call{nextInt}{23} calls might have caused more than one state advancement).\\
 We have
 \begin{align*}
     & state_0 = (s + R) \oplus M \\
@@ -257,7 +257,6 @@ We have
 and since the values of $state_0, M, R$ are all known, we can retrieve $s$ using the last equation, at which point checking the remaining conditions is simple. We have obtained an algorithm for finding Minecraft seeds that have a cluster of 4 nether structures spawning in minimal proximity from each other at 0,0. Further explanation of this example is available in Appendix B. %REF! 
 %TODO A simple Java implementation of this example and a link to a CUDA kernel are available in Appendix C.2.
 
-%TODO B: \Call{nextFloat}{} state prediction
 \subsection{ nextFloat() }
 
 \Call{nextInt}{$bound$} is not the only type of call that we can apply state prediction for. We can also easily deduce the possible states for a given range of \Call{nextFloat}{} return values by looking at the implementation of the function:
@@ -309,7 +308,7 @@ Finally, let's look at a general example of how this equation can be utilized to
 
 \section{Bit lifting}
 
-Bit lifting is an advanced seed searching technique which utilizes weaknesses of the Java Random PRNG. Due to a lack of comprehensive resources and an in-depth explanation, it confuses many beginners and even experts. In this section, we will break down the basic concepts behind bit lifting and see how it can be used in practical scenarios.
+Bit lifting is an advanced seed searching technique which utilizes weaknesses of the Java Random PRNG. Due to an existing naming conflict, and a lack of comprehensive resources or an in-depth explanation, it can be quite difficult to understand. In this section, we will break down the basic concepts behind bit lifting and see how it can be used in practical scenarios.
 
 \subsection{Shortened-state LCGs}
 
@@ -354,7 +353,7 @@ Notice that the last digits of consecutive state triplets are equal. The moduli,
 \begin{equation}
     n \times upper \times 10^k + n \times lower
 \end{equation}
-\noindent As the multiplication by $10^k$ is still there, the value of $upper$ did not affect the new $k$ lower digits. This statement holds true when we take the whole expression mod $10^m$, as that could only cut off the lower digits when all the upper digits were already cut off.
+\noindent As the multiplication by $10^k$ is still there, the value of $upper$ did not affect the new $k$ lower digits.
 
 Most importantly, a similar property is satisfied for binary states. Because the LCG inside Java Random uses a modulus of $2^{48}$, at the end of a state update, any binary digits (bits) above the 48-th get cut off without affecting the entire state. Therefore, the upper bits of a Java Random state do not affect the lower bits of any future state. This is the core idea that makes bit lifting possible.
 
@@ -445,20 +444,143 @@ Consider a subset $L$ of the set $P$ that only contains the positions of liftabl
 
 Finally, we will still need a way to use the data from other liftable structures. Notice that we are already considering partial seeds of maximum length given the input data; for other structures, we would ideally want to apply bit lifting with shorter partial seeds. Seeing as the upper bits of any Java Random state do not influence the lower bits of any other state, and we are only ever taking a sequence of the top bits modulo a power of two to compare them with the input data, the extraneous bits will simply be discarded by the modulo operation, not affecting the result. This convenient property essentially allows us to use the remaining data all the same, no matter what powers of two are used in the process.
 
-Variations of this algorithm have already been implemented in several Minecraft seed cracking tools, including the well-known general-purpose tool SeedCrackerX by 19MisterX98, and the more bit-lifting-oriented Seedcracker script by Epic10l2. %TODO add links to both
+Variations of this algorithm have already been implemented in several seed cracking tools, including the well-known general-purpose tool \href{https://github.com/19MisterX98/SeedcrackerX}{SeedCrackerX by 19MisterX98}, and the more bit-lifting-oriented \href{https://github.com/Epic10l2/Structurecracker}{StructureCracker by Epic10l2}. %TODO add links to both
 % TODO For completeness, a direct Java implementation of the described algorithm is available in Appendix C
 
-\subsection{Incremental bit lifting}
-An interesting technique that can be used to further improve the performance of bit lifting is incremental lifting. Although it might seem that an attempt at reducing the runtime of an efficient, lifting-based algorithm is unnecessary, incremental lifting might have some exotic use cases in practice, and is most definitely worth exploring academically.
+\section{Combining bit lifting and state prediction}
 
-The core idea behind incremental bit lifting is to start by filtering the smallest possible range of lower bit values using only partial data, and incrementally expand the range, applying all the pertinent filters. Intuitively, this should be an improvement over the standard bit lifting algorithm, as at each step, the seed range is kept as small as possible for the available data.
-% test lifting vs iter lifting to see if it's any better (it is)
-% TODO create lifting vs incr lifting graph
+Due to Java Random's limited state size and multiple vulnerabilities, it's often unnecessary to combine bit lifting with state prediction. However, creating such hybrids is possible and practical. In this chapter we'll explore how the fundamental principles of both approaches can be combined.
 
-% \subsection{An unusual hybrid: bit lifting meets state prediction}
-% In this final section on bit-lifting, we will ...
+\subsection{Bit lifting with direct state-predicted bits}
 
-% consider adding this:
+Some of the most common Java Random functions, including \Call{nextInt}{$2^k$} and \Call{nextFloat}{}, directly map a fragment of the generator's state to their outputs. If these bits aren't already part of the shortened-state LCG used for bit lifting, we can seamlessly incorporate state prediction into the process with minimal effort. Let's consider the following target sequence of PRNG operations, where $R_1, R_2$ are known integer constants:
+
+\
+\begin{algorithmic}
+\State \Call{setSeed}{$s + R_1$}
+\State \Call{nextFloat}{} $\to \ \le 0.01$
+\State \Call{setSeed}{$s + R_2$}
+\State \Call{nextInt}{24} $\to 15$
+\State \Call{nextInt}{24} $\to 2$
+
+\end{algorithmic}
+\ \
+
+By using state prediction on the \Call{nextFloat}{} call, we'd reduce the searched seed space by (approximately) a factor of 100. Similarly, each \Call{nextInt}{24} yields 3 bits of information about the lower 20 state bits, which amounts to a total reduction by a factor of 64. \\
+However, we don't have to choose one of the two options here -- we can combine both, as illustrated in the pseudocode below.
+
+\
+\begin{algorithmic}
+\State $validLower20List \gets$ bit lifting for the \Call{nextInt}{24} calls
+\State $floatLower20List \gets$ empty list
+\For{\textbf{each} $l$ in $validLower20List$}
+   \State \Call{setSeed}{$l + R_1$}
+   \State \Call{nextSeed}{}
+   \State Append ($state$ mod $2^{20}$) to $floatLower20List$
+\EndFor
+\\ \
+\State $bits_{min} = 0$
+\State $bits_{max} = \lceil 2^{24} \times 0.01 \rceil$
+\State $upper \gets bits_{min}$
+\While{$upper \le bits_{max}$}
+    \For{$middle \gets 0..(2^{4}-1)$}
+        \For{\textbf{each} $lower$ in $floatLower20List$}
+            \State $state \gets (upper \ll 24)\ |\ (middle \ll 20)\ |\ lower $
+            \State \Call{advance}{-1}
+            \Comment{Go back 1 state in the LCG}
+            \State $s \gets (state \oplus M) - R_1$
+            \Comment{Undo the \Call{setSeed}{}}
+            \State ...
+            \Comment{Check the remaining conditions}
+        \EndFor
+    \EndFor
+    \State $upper \gets upper + 1$
+\EndWhile
+\end{algorithmic}
+\ \
+
+What is the expected search space reduction here? Let's analyze the pseudo-code. First of all, the bit lifting process checks all lower 20-bit seeds and the 2 \Call{nextInt}{} calls reduce the number of these lower bit options by a factor of around 64. Then, for every candidate lower bit sequence, we calculate the lower 20 bits of the state used by the \Call{nextFloat}{} call -- notice that we only include the state advancement part of the \Call{nextFloat}{} as the output would be irrelevant. We store these partial \Call{nextFloat}{} states in a new list.
+
+The subsequent while loop is an implementation of \Call{nextFloat}{} state prediction. Recall that any range of \Call{nextFloat}{} outputs maps directly to a range of internal upper 24-bit state values -- $[bits_{min}, bits_{max}]$ (see section 4.2). %REF!
+In every iteration of the while loop, the upper 24 bits of state are fixed, but the lower 24 bits are entirely unconstrained. 
+Therefore we can simply take valid lower 20 bit options from the calculated list and fill in the remaining 4 middle bits with all possible options. 
+Notice that we've successfully applied both state prediction and bit lifting in full; therefore, the total search space reduction achieved by this algorithm is the product of both methods' reduction factors: $100 \times 64 = 6400$.
+
+Fundamentally, the illustrated approach can target any other Java Random call that directly translates fragments of its state bits to outputs.
+Surprisingly, this direct method of deriving outputs is at the core of the vast majority of Java Random's functions -- specifically, \Call{nextFloat}{} \Call{nextDouble}{}, \Call{nextBoolean}{}, \Call{nextInt}{$2^k$}, \Call{nextInt}{}, \Call{nextLong}{} all return a largely unscrambled fragment of the underlying LCG's state as output and can be the target of state prediction combined with bit lifting using other constraints.
+
+\subsection{Bit lifting with nextInt($bound$) state prediction}
+
+When the state prediction target is a \Call{nextInt}{$bound$} call, where $bound$ is not a power of 2, the partial states can no longer be combined directly. 
+Bit lifting yields partial states that are at least 18 bits long, and state prediction would attempt to fix the value of the upper 31 state bits. 
+Therefore, the 18-th state bit would be shared, which prevents direct concatenation of both partial states. 
+
+However, it's possible to eliminate the shared bits if we carefully handle the underlying modular arithmetic. Let $v$ be the output value of \Call{nextInt}{$b$}, where $b \neq 2^k$ for all integers $k$. Let $p$ be the number of bits above the 17th state bit that are being lifted. Let $u$ be the upper $31 - p$ bits of the state used for calculating the output value, $l$ - the lower 17 bits, and $m$ - the middle $p$ bits.
+
+\begin{align*}
+    state & = u \times 2^{17+p} + m \times 2^{17} + l \\
+    v & \equiv u \times 2^p + m & (\text{mod}\ b)
+\end{align*}
+
+\noindent If $b$ is odd, then reorganizing the congruence we get:
+
+\begin{align*}
+    u \times 2^p & \equiv m - v & (\text{mod}\ b) \\
+    u \times 2^p \times (2^p)^{-1} & \equiv (m - v) \times (2^p)^{-1} & (\text{mod}\ b) \\
+    u & \equiv (m - v) \times (2^p)^{-1} & (\text{mod}\ b)
+\end{align*}
+
+\noindent Note that if $b$ were even, the value $(2^p)^{-1}$ wouldn't exist; in that case, we would first eliminate all factors of 2 (up to $p$ times) from the congruence and solve the new congruence in an identical way. For the sake of brevity, it's left as an exercise to the reader to verify that the process would remain the same.
+
+For a known output value $v$, the right-hand-side of the final congruence depends only on one variable -- $m$. If the value of $m$ is known, which is true when we're working with a specific, lifted partial state, the entire expression is constant:
+
+\begin{align*}
+    u & \equiv C \quad (\text{mod}\ b)
+\end{align*}
+
+\noindent Therefore, by iterating over upper-bit values of the form $u = k \times b + C$, we can guarantee the congruence will be satisfied, and thus the output value of \Call{nextInt}{b} will be equal to our target -- $v$. Now, it's straightforward to combine the state prediction with bit lifting, as the state bits in $u$ are disjoint with the lower $17+p$ bits. Let's formulate a hybrid algorithm to recover seeds $s$ that satisfy the following PRNG criteria ($R_1, R_2$ are known integer constants):
+
+\
+\begin{samepage}
+\begin{algorithmic}
+\State \Call{setSeed}{$s + R_1$}
+\State \Call{nextInt}{25} $\to 14$
+\State \Call{nextInt}{25} $\to 5$
+\State \Call{setSeed}{$s + R_2$}
+\State \Call{nextInt}{24} $\to 3$
+\State \Call{nextInt}{24} $\to 22$
+
+\end{algorithmic}
+\end{samepage}
+\ \
+
+\
+\begin{algorithmic}
+\State $validLower20List \gets$ bit lifting for the \Call{nextInt}{24} calls
+\State $intLower20List \gets$ empty list
+\For{\textbf{each} $l$ in $validLower20List$}
+   \State \Call{setSeed}{$l + R_1$}
+   \State \Call{nextSeed}{}
+   \State Append ($state$ mod $2^{20}$) to $intLower20List$
+\EndFor
+\\ \
+\State $Q \gets $ \Call{modInverse}{$2^p$, 25}
+\For{\textbf{each} $lower$ in $intLower20List$}
+    \State $m \gets (lower \gg 17)$
+    \State $C \gets ((m - 14 + 25) \times Q)$ mod 25 
+    \State $upper \gets C$
+    \While{$upper < 2^{28}$}
+        \State $state \gets (upper \ll 20)\ |\ lower$
+        \State \Call{advance}{-1}
+        \State $s \gets (state \oplus M) - R_1$
+        \State ...
+        \Comment{Check the remaining conditions}
+        \State $upper \gets upper + b$
+    \EndWhile
+\EndFor
+\end{algorithmic}
+\ \
+
 % \section{Hensel lifting}
 
 \appendix
@@ -473,7 +595,7 @@ public class JavaRandom {
     private static final long MODULUS = 1L << 48;
     // Instead of using the modulus itself, we can use
     // a bit mask on the lower 48 bits, which avoids
-    // signed integer issues and is slightly faster
+    // signed integer issues.
     private static final long MASK = MODULUS - 1;
 
     // state is a 48-bit integer, but internally
@@ -497,9 +619,7 @@ public class JavaRandom {
     // so it indirectly assumes numBits <= 32
     private int next(int numBits) {
         nextSeed();
-        // >>> here is equivalent to the more natural,
-        // arithmetic bit shift, >>, since state >= 0
-        return (int)(state >>> 48-numBits);
+        return (int)(state >> 48-numBits);
     }
 
     // Returns a pseudo-random integer from the range
@@ -526,7 +646,9 @@ public class JavaRandom {
             value = bits % bound;
         } while(bits - value + (bound - 1) < 0);
         // The condition is only true if an integer 
-        // overflow happened
+        // overflow happened. The purpose of
+        // The loop is to eliminate bias - some
+        // values modulo bound would be over-represented.
         
         return value;
     }
@@ -542,7 +664,8 @@ public class JavaRandom {
         // Take two upper 32-bit values from consecutive 
         // states and sum them together, moving the first 
         // value up by 32 bits. Note that next(32) returns
-        // a signed value.
+        // a signed value and the lower 31 bits will be
+        // sign-extended before being added!
         return ((long)(next(32)) << 32) + next(32);
     }
 }
