@@ -18,7 +18,7 @@ jobs:
 
       - name: Compile latex to pdf
         id: compile-latex-document
-        uses: thomas-chauvet/latex2pdf-action@v2
+        uses: thomas-chauvet/latex2pdf-action@v2.0.1
         with:
           output_dir: output
           main_latex_file: main.tex
