@@ -4,14 +4,18 @@ on:
   push:
     tags:
       - 'v*.*.*'
-      
+
+permissions:
+  contents: write
+
 jobs:
   build-latex:
     runs-on: ubuntu-latest
+
     steps:
       - name: Set up Git repository
-        uses: actions/checkout@v2
-        
+        uses: actions/checkout@v6
+
       - name: Compile latex to pdf
         uses: thomas-chauvet/latex2pdf-action@1.1.0
         with:
@@ -20,29 +24,16 @@ jobs:
           ctan_packages: amsmath algorithmicx listings graphicx
 
       - name: Upload pdf to the workflow tab
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: output-main
           path: output/bitlifting.pdf
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release and upload asset
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
+          files: output/bitlifting.pdf
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
-          allowUpdates: true
-
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: output/bitlifting.pdf
-          asset_name: bitlifting.pdf
-          asset_content_type: application/pdf
