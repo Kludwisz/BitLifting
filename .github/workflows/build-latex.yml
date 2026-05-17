@@ -21,7 +21,7 @@ jobs:
         uses: thomas-chauvet/latex2pdf-action@2.0.1
         with:
           output_dir: output
-          main_latex_file: main.tex
+          main_latex_file: bitlifting.tex
           ctan_packages: amsmath algorithmicx listings
 
       - name: Upload pdf to the workflow tab
